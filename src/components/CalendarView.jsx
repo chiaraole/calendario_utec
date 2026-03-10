@@ -4,9 +4,9 @@ const DAYS = ['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado']
 const DAYS_SHORT = ['Lun','Mar','Mié','Jue','Vie','Sáb']
 const START_HOUR = 7
 const END_HOUR = 23
-const TOTAL_HOURS = END_HOUR - START_HOUR
+const PX_PER_HOUR = 52          // must match .hour-cell height in CSS
 const PRACTICA_START = '09:00'
-const PRACTICA_END = '16:00'
+const PRACTICA_END   = '16:00'
 
 function timeToMinutes(t) {
   const [h, m] = t.split(':').map(Number)
@@ -24,16 +24,17 @@ function shortDocente(docente) {
   return docente.split(' ').slice(0,2).join(' ')
 }
 
-// Background band for practica hours in the calendar
-function PracticaBand({ totalMinutes, type }) {
-  const startMin = timeToMinutes(PRACTICA_START) - START_HOUR * 60
-  const endMin   = timeToMinutes(PRACTICA_END)   - START_HOUR * 60
-  const top    = (startMin / totalMinutes) * 100
-  const height = ((endMin - startMin) / totalMinutes) * 100
+function timeToPx(timeStr) {
+  return (timeToMinutes(timeStr) - START_HOUR * 60) / 60 * PX_PER_HOUR
+}
+
+function PracticaBand({ type }) {
+  const top    = timeToPx(PRACTICA_START)
+  const height = timeToPx(PRACTICA_END) - top
   return (
     <div
       className={`practica-band practica-band-${type}`}
-      style={{ top: `${top}%`, height: `${height}%` }}
+      style={{ top: `${top}px`, height: `${height}px` }}
       title={type === 'presencial' ? 'Práctica presencial — choca con clases presenciales' : 'Práctica virtual — sin restricciones'}
     >
       <span className="practica-band-label">
@@ -43,14 +44,11 @@ function PracticaBand({ totalMinutes, type }) {
   )
 }
 
-function CalendarBlock({ slot, totalMinutes }) {
-  const startMin = timeToMinutes(slot.start) - START_HOUR * 60
-  const endMin   = timeToMinutes(slot.end)   - START_HOUR * 60
-  const top    = (startMin / totalMinutes) * 100
-  const height = ((endMin - startMin) / totalMinutes) * 100
-  const duration = endMin - startMin
-  const isShort = duration < 70
-  const isMed   = duration >= 70 && duration < 110
+function CalendarBlock({ slot }) {
+  const top    = timeToPx(slot.start)
+  const height = timeToPx(slot.end) - top
+  const isShort = height < (PX_PER_HOUR * 70 / 60)
+  const isMed   = height >= (PX_PER_HOUR * 70 / 60) && height < (PX_PER_HOUR * 110 / 60)
   const isConflict = slot.hasConflict
 
   const tooltip = [
@@ -63,12 +61,12 @@ function CalendarBlock({ slot, totalMinutes }) {
 
   return (
     <div
-      className={`cal-block${isConflict?' conflict':''}`}
+      className={`cal-block${isConflict ? ' conflict' : ''}`}
       style={{
-        top: `${top}%`, height: `${height}%`,
+        top: `${top}px`, height: `${height}px`,
         backgroundColor: isConflict ? '#FFF0F0' : slot.color.bg,
-        borderColor: isConflict ? '#D94040' : slot.color.border,
-        color: isConflict ? '#8A1A1A' : slot.color.text,
+        borderColor:     isConflict ? '#D94040' : slot.color.border,
+        color:           isConflict ? '#8A1A1A' : slot.color.text,
       }}
       title={tooltip}
     >
@@ -80,7 +78,7 @@ function CalendarBlock({ slot, totalMinutes }) {
         {!isMed && !isShort && slot.docente && <div className="cal-docente">👤 {shortDocente(slot.docente)}</div>}
         {!isMed && !isShort && (
           <div className="cal-vacantes">
-            <span className={slot.vacantes-slot.matriculados<=5?'vacantes-low':'vacantes-ok'}>
+            <span className={slot.vacantes - slot.matriculados <= 5 ? 'vacantes-low' : 'vacantes-ok'}>
               {slot.matriculados}/{slot.vacantes} matric.
             </span>
           </div>
@@ -91,8 +89,7 @@ function CalendarBlock({ slot, totalMinutes }) {
 }
 
 export default function CalendarView({ selectedSlots, practicaConfig, conflictCount }) {
-  const totalMinutes = TOTAL_HOURS * 60
-  const hours = Array.from({ length: TOTAL_HOURS + 1 }, (_,i) => START_HOUR + i)
+  const hours = Array.from({ length: END_HOUR - START_HOUR + 1 }, (_, i) => START_HOUR + i)
 
   const slotsByDay = useMemo(() => {
     const byDay = Array.from({ length: 6 }, () => [])
@@ -107,23 +104,24 @@ export default function CalendarView({ selectedSlots, practicaConfig, conflictCo
     <div className="calendar-view">
       <div className="calendar-header-row">
         <div className="time-gutter"/>
-        {DAYS.map((day,i) => (
-          <div key={day} className={`day-header${slotsByDay[i].length>0?' has-events':''}${enabled&&presencialDays.includes(i)?' prac-pres':''}${enabled&&virtualDays.includes(i)?' prac-virt':''}`}>
+        {DAYS.map((day, i) => (
+          <div key={day} className={`day-header${slotsByDay[i].length > 0 ? ' has-events' : ''}${enabled && presencialDays.includes(i) ? ' prac-pres' : ''}${enabled && virtualDays.includes(i) ? ' prac-virt' : ''}`}>
             <span className="day-full">{day}</span>
             <span className="day-short">{DAYS_SHORT[i]}</span>
             {enabled && presencialDays.includes(i) && <span className="day-prac-badge">🏢 Pres.</span>}
-            {enabled && virtualDays.includes(i) && <span className="day-prac-badge virt">💻 Virt.</span>}
+            {enabled && virtualDays.includes(i)    && <span className="day-prac-badge virt">💻 Virt.</span>}
           </div>
         ))}
       </div>
 
       {conflictCount > 0 && (
         <div className="conflict-banner">
-          ⚠️ {conflictCount} choque{conflictCount>1?'s':''} de horario detectado{conflictCount>1?'s':''}
+          ⚠️ {conflictCount} choque{conflictCount > 1 ? 's' : ''} de horario detectado{conflictCount > 1 ? 's' : ''}
         </div>
       )}
 
       <div className="calendar-body">
+        {/* Time labels column */}
         <div className="time-column">
           {hours.map(h => (
             <div key={h} className="time-cell">
@@ -132,17 +130,18 @@ export default function CalendarView({ selectedSlots, practicaConfig, conflictCo
           ))}
         </div>
 
-        {DAYS.map((day,dayIndex) => {
+        {/* Day columns */}
+        {DAYS.map((day, dayIndex) => {
           const isPres = enabled && presencialDays.includes(dayIndex)
           const isVirt = enabled && virtualDays.includes(dayIndex)
           return (
-            <div key={day} className={`day-column${isPres?' col-pres':isVirt?' col-virt':''}`}>
+            <div key={day} className={`day-column${isPres ? ' col-pres' : isVirt ? ' col-virt' : ''}`}>
               {hours.map(h => <div key={h} className="hour-cell"/>)}
               <div className="blocks-layer">
-                {isPres && <PracticaBand totalMinutes={totalMinutes} type="presencial"/>}
-                {isVirt && <PracticaBand totalMinutes={totalMinutes} type="virtual"/>}
-                {slotsByDay[dayIndex].map((slot,i) => (
-                  <CalendarBlock key={`${slot.courseCode}-${slot.grupoName}-${i}`} slot={slot} totalMinutes={totalMinutes}/>
+                {isPres && <PracticaBand type="presencial"/>}
+                {isVirt && <PracticaBand type="virtual"/>}
+                {slotsByDay[dayIndex].map((slot, i) => (
+                  <CalendarBlock key={`${slot.courseCode}-${slot.grupoName}-${i}`} slot={slot}/>
                 ))}
               </div>
             </div>
