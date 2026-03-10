@@ -174,3 +174,137 @@ html, body, #root { height: 100%; background: var(--cream); font-family: 'Nunito
   .day-full { display: none; }
   .day-short { display: inline; }
 }
+
+/* ─── PRACTICA PANEL ─── */
+.practica-panel {
+  margin: 0 12px 4px;
+  background: var(--white);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  flex-shrink: 0;
+}
+.practica-panel.practica-active {
+  border-color: #D4A84B;
+  box-shadow: 0 2px 10px rgba(212,168,75,0.15);
+}
+.practica-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+}
+.practica-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.practica-icon { font-size: 16px; }
+.practica-title {
+  display: block;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-dark);
+  line-height: 1.2;
+}
+.practica-subtitle {
+  display: block;
+  font-size: 10px;
+  color: var(--text-light);
+}
+/* Toggle switch */
+.practica-toggle {
+  width: 36px; height: 20px;
+  background: var(--cream-dark);
+  border: none; border-radius: 100px;
+  cursor: pointer; position: relative;
+  transition: background 0.2s;
+  flex-shrink: 0;
+}
+.practica-toggle.on { background: #D4A84B; }
+.toggle-knob {
+  position: absolute;
+  top: 3px; left: 3px;
+  width: 14px; height: 14px;
+  background: white;
+  border-radius: 50%;
+  transition: transform 0.2s;
+  display: block;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+}
+.practica-toggle.on .toggle-knob { transform: translateX(16px); }
+.practica-body { padding: 0 12px 12px; border-top: 1px solid var(--border-light); padding-top: 10px; }
+.practica-hint { font-size: 11px; color: var(--text-mid); margin-bottom: 8px; }
+.practica-hint strong { color: var(--text-dark); }
+.practica-days-row { display: flex; gap: 4px; margin-bottom: 8px; }
+.practica-day-btn {
+  flex: 1; padding: 6px 2px;
+  background: var(--cream);
+  border: 1.5px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  font-size: 11px; font-weight: 600;
+  color: var(--text-mid);
+  cursor: pointer; font-family: inherit;
+  position: relative;
+  transition: all 0.15s;
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+}
+.practica-day-btn:hover:not(.disabled) { background: var(--white); border-color: var(--cream-dark); }
+.practica-day-btn.pres { background: #FFF8E1; border-color: #D4A84B; color: #7A5200; }
+.practica-day-btn.virt { background: #E8F4FF; border-color: #90BFEE; color: #1A4E8A; }
+.practica-day-btn.disabled { opacity: 0.4; cursor: not-allowed; }
+.day-mode-badge { font-size: 8px; font-weight: 800; padding: 1px 4px; border-radius: 4px; background: #D4A84B; color: white; }
+.day-mode-badge.virt-badge { background: #90BFEE; }
+.practica-legend { font-size: 10px; color: var(--text-light); line-height: 2; }
+.legend-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 4px; vertical-align: middle; }
+.pres-dot { background: #F0C040; }
+.virt-dot { background: #90BFEE; }
+
+/* ─── PRACTICA BANDS IN CALENDAR ─── */
+.practica-band {
+  position: absolute; left: 0; right: 0;
+  pointer-events: none; z-index: 0;
+  display: flex; align-items: flex-start;
+  padding-top: 4px; padding-left: 4px;
+}
+.practica-band-presencial {
+  background: repeating-linear-gradient(
+    45deg, rgba(212,168,75,0.07) 0px, rgba(212,168,75,0.07) 4px,
+    rgba(212,168,75,0.13) 4px, rgba(212,168,75,0.13) 8px
+  );
+  border-left: 2px solid rgba(212,168,75,0.5);
+}
+.practica-band-virtual {
+  background: repeating-linear-gradient(
+    45deg, rgba(144,191,238,0.06) 0px, rgba(144,191,238,0.06) 4px,
+    rgba(144,191,238,0.12) 4px, rgba(144,191,238,0.12) 8px
+  );
+  border-left: 2px solid rgba(144,191,238,0.5);
+}
+.practica-band-label {
+  font-size: 9px; font-weight: 700;
+  color: rgba(122,82,0,0.6);
+  white-space: nowrap;
+  pointer-events: none;
+}
+.practica-band-virtual .practica-band-label { color: rgba(26,78,138,0.5); }
+
+/* ─── PRACTICA DAY HEADERS ─── */
+.day-header.prac-pres { background: #FFFBF0; }
+.day-header.prac-virt { background: #F5FAFF; }
+.day-prac-badge {
+  display: block;
+  font-size: 9px;
+  font-weight: 600;
+  color: #7A5200;
+  margin-top: 2px;
+}
+.day-prac-badge.virt { color: #1A4E8A; }
+
+/* ─── PRACTICA COLUMN TINT ─── */
+.col-pres { background: rgba(212,168,75,0.03); }
+.col-virt { background: rgba(144,191,238,0.03); }
+
+/* Ensure cal-blocks sit above practica band */
+.cal-block { z-index: 2; }

@@ -1,10 +1,10 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useMemo } from 'react'
 import * as XLSX from 'xlsx'
 import CoursePanel from './components/CoursePanel'
 import CalendarView from './components/CalendarView'
 import './App.css'
 
-function timeToMinutes(t) {
+export function timeToMinutes(t) {
   const [h, m] = t.split(':').map(Number)
   return h * 60 + m
 }
@@ -21,65 +21,37 @@ function getBaseType(name) {
 
 export function computeSelectableUnits(sectionData, sectionKey) {
   const grupos = Object.values(sectionData.grupos)
-
   const byBase = {}
   grupos.forEach(g => {
     const base = getBaseType(g.name)
     if (!byBase[base]) byBase[base] = []
     byBase[base].push(g)
   })
-
   const sharedGrupos = []
   const individualByBase = {}
-
   Object.entries(byBase).forEach(([base, typeGrupos]) => {
-    if (typeGrupos.length === 1) {
-      sharedGrupos.push(typeGrupos[0])
-    } else {
-      individualByBase[base] = typeGrupos
-    }
+    if (typeGrupos.length === 1) sharedGrupos.push(typeGrupos[0])
+    else individualByBase[base] = typeGrupos
   })
-
   if (Object.keys(individualByBase).length === 0) {
-    return {
-      sharedGrupos: [],
-      units: [{ id: sectionKey, sectionKey, label: `Sección ${sectionKey}`, subLabel: null, grupos: sharedGrupos }]
-    }
+    return { sharedGrupos: [], units: [{ id: sectionKey, sectionKey, label: `Sección ${sectionKey}`, subLabel: null, grupos: sharedGrupos }] }
   }
-
   const classroomMap = {}
-
   Object.values(individualByBase).forEach(typeGrupos => {
     typeGrupos.forEach(g => {
       const match = g.name.match(/(\d+(?:\.\d+)?)\s*$/)
       const numStr = match ? match[1] : g.name
       let subKey = numStr
-      if (!numStr.includes('.') && numStr.startsWith(sectionKey) && numStr.length > sectionKey.length) {
-        subKey = numStr.slice(sectionKey.length)
-      } else if (numStr.startsWith(sectionKey + '.')) {
-        subKey = numStr.slice(sectionKey.length + 1)
-      }
+      if (!numStr.includes('.') && numStr.startsWith(sectionKey) && numStr.length > sectionKey.length) subKey = numStr.slice(sectionKey.length)
+      else if (numStr.startsWith(sectionKey + '.')) subKey = numStr.slice(sectionKey.length + 1)
       if (!classroomMap[subKey]) classroomMap[subKey] = { subKey, grupos: [] }
       classroomMap[subKey].grupos.push(g)
     })
   })
-
   const units = Object.values(classroomMap).map(({ subKey, grupos: indGrupos }) => {
-    const shortLabel = indGrupos
-      .map(g => g.name
-        .replace('TEORÍA VIRTUAL', 'T.Virt')
-        .replace('TEORÍA', 'T')
-        .replace('LABORATORIO', 'Lab'))
-      .join(' + ')
-    return {
-      id: `${sectionKey}-${subKey}`,
-      sectionKey,
-      label: `Sección ${sectionKey}`,
-      subLabel: shortLabel,
-      grupos: [...sharedGrupos, ...indGrupos]
-    }
+    const shortLabel = indGrupos.map(g => g.name.replace('TEORÍA VIRTUAL','T.Virt').replace('TEORÍA','T').replace('LABORATORIO','Lab')).join(' + ')
+    return { id: `${sectionKey}-${subKey}`, sectionKey, label: `Sección ${sectionKey}`, subLabel: shortLabel, grupos: [...sharedGrupos, ...indGrupos] }
   })
-
   return { sharedGrupos, units }
 }
 
@@ -98,21 +70,17 @@ function parseExcel(data) {
   const workbook = XLSX.read(data, { type: 'array' })
   const sheet = workbook.Sheets[workbook.SheetNames[0]]
   const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 })
-
   let headerRow = -1
   for (let i = 0; i < rows.length; i++) {
     if (rows[i] && rows[i][0] === 'Código Curso') { headerRow = i; break }
   }
   if (headerRow === -1) return { courses: {}, meta: {} }
-
   const meta = {}
   for (let i = 0; i < headerRow; i++) {
     const row = rows[i]
     if (row && row[0] && row[1]) meta[row[0]] = row[1]
   }
-
   const coursesMap = {}
-
   for (let i = headerRow + 1; i < rows.length; i++) {
     const row = rows[i]
     if (!row || !row[0]) continue
@@ -120,33 +88,22 @@ function parseExcel(data) {
     if (!code || !name) continue
     const parsedHorario = parseHorario(horario)
     if (!parsedHorario) continue
-
     const codeStr = String(code).trim()
-    if (!coursesMap[codeStr]) {
-      coursesMap[codeStr] = { code: codeStr, name: String(name).trim(), sections: {} }
-    }
+    if (!coursesMap[codeStr]) coursesMap[codeStr] = { code: codeStr, name: String(name).trim(), sections: {} }
     const sectionKey = String(section).trim()
-    if (!coursesMap[codeStr].sections[sectionKey]) {
-      coursesMap[codeStr].sections[sectionKey] = { section: sectionKey, grupos: {} }
-    }
+    if (!coursesMap[codeStr].sections[sectionKey]) coursesMap[codeStr].sections[sectionKey] = { section: sectionKey, grupos: {} }
     const grupoKey = String(grupo).trim()
     if (!coursesMap[codeStr].sections[sectionKey].grupos[grupoKey]) {
-      coursesMap[codeStr].sections[sectionKey].grupos[grupoKey] = {
-        name: grupoKey,
-        modalidad: String(modalidad || '').trim(),
-        docente: String(docente || '').trim(),
-        slots: []
-      }
+      coursesMap[codeStr].sections[sectionKey].grupos[grupoKey] = { name: grupoKey, modalidad: String(modalidad||'').trim(), docente: String(docente||'').trim(), slots: [] }
     }
     coursesMap[codeStr].sections[sectionKey].grupos[grupoKey].slots.push({
       ...parsedHorario,
-      ubicacion: String(ubicacion || '').trim(),
-      frecuencia: String(frecuencia || '').trim(),
-      vacantes: Number(vacantes) || 0,
-      matriculados: Number(matriculados) || 0
+      ubicacion: String(ubicacion||'').trim(),
+      frecuencia: String(frecuencia||'').trim(),
+      vacantes: Number(vacantes)||0,
+      matriculados: Number(matriculados)||0
     })
   }
-
   Object.values(coursesMap).forEach(course => {
     Object.entries(course.sections).forEach(([sectionKey, section]) => {
       const computed = computeSelectableUnits(section, sectionKey)
@@ -154,7 +111,6 @@ function parseExcel(data) {
       section.units = computed.units
     })
   })
-
   return { courses: coursesMap, meta }
 }
 
@@ -172,10 +128,8 @@ const PASTEL_COLORS = [
   { bg: '#FFE0E8', border: '#F0A0B8', text: '#8A1A40', light: '#FFF5F8' },
   { bg: '#E8F8E0', border: '#98D880', text: '#2A6818', light: '#F5FBF0' },
 ]
-
 let colorIndex = 0
 const colorCache = {}
-
 function getCourseColor(code) {
   if (!colorCache[code]) {
     colorCache[code] = PASTEL_COLORS[colorIndex % PASTEL_COLORS.length]
@@ -184,18 +138,39 @@ function getCourseColor(code) {
   return colorCache[code]
 }
 
+// ── Practica conflict checker ──
+// Conflict only if: slot is Presencial AND falls on a practica presencial day AND overlaps 09:00-16:00
+function hasPracticaConflict(slot, practicaConfig) {
+  if (!practicaConfig.enabled) return false
+  if (!practicaConfig.presencialDays.includes(slot.day)) return false
+  const isPresencial = slot.modalidad === 'Presencial'
+  if (!isPresencial) return false
+  return slotsOverlap(slot, { day: slot.day, start: '09:00', end: '16:00' })
+}
+
 export default function App() {
   const [data, setData] = useState(null)
-  const [selectedSlots, setSelectedSlots] = useState([])
+  const [rawSlots, setRawSlots] = useState([])   // slots without conflict flags
   const [isDragging, setIsDragging] = useState(false)
-  const [conflictWarning, setConflictWarning] = useState(null)
+  const [practicaConfig, setPracticaConfig] = useState({ enabled: false, presencialDays: [] })
+
+  // Derive slots with conflicts reactively (recalculates on practica change too)
+  const selectedSlots = useMemo(() => {
+    return rawSlots.map(slot => {
+      const courseConflict = rawSlots.some(other =>
+        other !== slot && other.courseCode !== slot.courseCode && slotsOverlap(slot, other)
+      )
+      const practicaConflictFlag = hasPracticaConflict(slot, practicaConfig)
+      return { ...slot, hasConflict: courseConflict || practicaConflictFlag, hasPracticaConflict: practicaConflictFlag }
+    })
+  }, [rawSlots, practicaConfig])
 
   const handleFile = useCallback((file) => {
     const reader = new FileReader()
     reader.onload = (e) => {
       const result = parseExcel(new Uint8Array(e.target.result))
       setData(result)
-      setSelectedSlots([])
+      setRawSlots([])
       colorIndex = 0
       Object.keys(colorCache).forEach(k => delete colorCache[k])
     }
@@ -211,58 +186,25 @@ export default function App() {
 
   const handleSelectUnit = useCallback((courseCode, courseName, unitId, gruposToAdd) => {
     const color = getCourseColor(courseCode)
-    setConflictWarning(null)
-
-    setSelectedSlots(prev => {
+    setRawSlots(prev => {
       const isSelected = prev.some(s => s.courseCode === courseCode && s.unitId === unitId)
-      if (isSelected) {
-        return prev.filter(s => !(s.courseCode === courseCode && s.unitId === unitId))
-      }
-
+      if (isSelected) return prev.filter(s => !(s.courseCode === courseCode && s.unitId === unitId))
       const withoutCourse = prev.filter(s => s.courseCode !== courseCode)
-
       const newSlots = []
       gruposToAdd.forEach(grupo => {
         grupo.slots.forEach(slot => {
-          const hasConflict = withoutCourse.some(es => slotsOverlap(es, slot))
-          newSlots.push({
-            ...slot,
-            courseCode, courseName, unitId,
-            grupoName: grupo.name,
-            modalidad: grupo.modalidad,
-            docente: grupo.docente,
-            color,
-            hasConflict
-          })
+          newSlots.push({ ...slot, courseCode, courseName, unitId, grupoName: grupo.name, modalidad: grupo.modalidad, docente: grupo.docente, color })
         })
       })
-
-      const conflictCount = newSlots.filter(s => s.hasConflict).length
-      if (conflictCount > 0) {
-        setTimeout(() => {
-          setConflictWarning(`⚠️ "${courseName}" tiene ${conflictCount} choque${conflictCount > 1 ? 's' : ''} de horario`)
-          setTimeout(() => setConflictWarning(null), 4000)
-        }, 0)
-      }
-
       return [...withoutCourse, ...newSlots]
     })
   }, [])
 
   const handleRemoveSlots = useCallback((courseCode) => {
-    setSelectedSlots(prev => {
-      const updated = prev.filter(s => s.courseCode !== courseCode)
-      // Re-check conflicts after removal
-      return updated.map((slot, _, arr) => ({
-        ...slot,
-        hasConflict: arr.some((other, oi) => {
-          if (other === slot) return false
-          return slotsOverlap(slot, other) && other.courseCode !== slot.courseCode
-        })
-      }))
-    })
-    setConflictWarning(null)
+    setRawSlots(prev => prev.filter(s => s.courseCode !== courseCode))
   }, [])
+
+  const conflictCount = selectedSlots.filter(s => s.hasConflict).length
 
   return (
     <div className="app">
@@ -278,12 +220,7 @@ export default function App() {
             <h1>Planificador de Horarios</h1>
             <p className="upload-subtitle">Carga tu Excel de consulta de horarios para organizar tu semana</p>
             <label className="upload-btn">
-              <input
-                type="file"
-                accept=".xlsx,.xls"
-                onChange={(e) => e.target.files[0] && handleFile(e.target.files[0])}
-                style={{ display: 'none' }}
-              />
+              <input type="file" accept=".xlsx,.xls" onChange={(e) => e.target.files[0] && handleFile(e.target.files[0])} style={{ display: 'none' }} />
               <span>📂</span> Seleccionar archivo Excel
             </label>
             <p className="upload-hint">o arrastra el archivo aquí</p>
@@ -291,9 +228,6 @@ export default function App() {
         </div>
       ) : (
         <div className="main-layout">
-          {conflictWarning && (
-            <div className="conflict-toast">{conflictWarning}</div>
-          )}
           <CoursePanel
             courses={data.courses}
             meta={data.meta}
@@ -301,9 +235,15 @@ export default function App() {
             onSelectUnit={handleSelectUnit}
             onRemoveSlots={handleRemoveSlots}
             getCourseColor={getCourseColor}
-            onReset={() => { setData(null); setSelectedSlots([]) }}
+            onReset={() => { setData(null); setRawSlots([]) }}
+            practicaConfig={practicaConfig}
+            onPracticaChange={setPracticaConfig}
           />
-          <CalendarView selectedSlots={selectedSlots} />
+          <CalendarView
+            selectedSlots={selectedSlots}
+            practicaConfig={practicaConfig}
+            conflictCount={conflictCount}
+          />
         </div>
       )}
     </div>
