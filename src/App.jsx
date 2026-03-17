@@ -30,8 +30,22 @@ export function computeSelectableUnits(sectionData, sectionKey) {
   const sharedGrupos = []
   const individualByBase = {}
   Object.entries(byBase).forEach(([base, typeGrupos]) => {
-    if (typeGrupos.length === 1) sharedGrupos.push(typeGrupos[0])
-    else individualByBase[base] = typeGrupos
+    if (typeGrupos.length === 1) {
+      sharedGrupos.push(typeGrupos[0])
+    } else {
+      // If one grupo has suffix exactly == sectionKey (e.g. TEORÍA 1 in section 1),
+      // it's the shared parent lecture; the others (TEORÍA 11, 12…) are individual alternatives
+      const parentGrupo = typeGrupos.find(g => {
+        const m = g.name.match(/(\d+(?:\.\d+)?)\s*$/)
+        return m && m[1] === sectionKey
+      })
+      if (parentGrupo) {
+        sharedGrupos.push(parentGrupo)
+        individualByBase[base] = typeGrupos.filter(g => g !== parentGrupo)
+      } else {
+        individualByBase[base] = typeGrupos
+      }
+    }
   })
   if (Object.keys(individualByBase).length === 0) {
     return { sharedGrupos: [], units: [{ id: sectionKey, sectionKey, label: `Sección ${sectionKey}`, subLabel: null, grupos: sharedGrupos }] }
